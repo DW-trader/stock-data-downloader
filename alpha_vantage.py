@@ -12,6 +12,8 @@ LOW    = '3. low'
 CLOSE  = '4. close'
 VOLUME = '5. volume'
 
+DAILY = 'Time Series (Daily)'
+
 
 class settings():
     API_KEY = 'demo'
@@ -27,7 +29,11 @@ def get_data(input_file):
         raw_data = urllib2.urlopen(url)
         data = json.load(raw_data)
 
-        for date, info in data['Time Series (Daily)'].iteritems():
+        if DAILY not in data:
+            print >> sys.stderr, 'No data for {0}'.format(ticker)
+            continue
+
+        for date, info in data[DAILY].iteritems():
             print ticker, date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]
 
 
