@@ -1,7 +1,7 @@
 
 import sys
 import argparse
-import urllib2
+from urllib.request import urlopen
 import yaml
 import simplejson as json
 
@@ -26,23 +26,23 @@ def get_data(input_file):
         url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&apikey={1}'
         url = url_template.format(ticker, settings.API_KEY)
 
-        raw_data = urllib2.urlopen(url)
+        raw_data = urlopen(url)
         data = json.load(raw_data)
 
         if DAILY not in data:
             print >> sys.stderr, 'No data for {0}'.format(ticker)
             continue
 
-        for date, info in data[DAILY].iteritems():
-            print ticker, date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]
+        for date, info in data[DAILY].items():
+            print (ticker, date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
 
 
 def load_settings(path):
     with open(path) as f:
         s = yaml.load(f)
 
-    for key, value in s.iteritems():
-        settings.__dict__[key.upper()] = value
+    for key, value in s.items():
+        setattr(settings, key.upper(), value)
 
 
 def main():
