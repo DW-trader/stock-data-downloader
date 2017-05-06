@@ -32,8 +32,16 @@ def get_data(tickers):
             print('No data for {0}'.format(ticker), file=sys.stderr)
             continue
 
-        for date, info in data[DAILY].items():
-            print(ticker, date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
+        file_name = './tmp/{0}'.format(ticker)
+
+        with open(file_name, 'w') as output_file:
+            _write_to_file(output_file, data[DAILY])
+
+
+def _write_to_file(output_file, data):
+    for date, info in data.items():
+        line = '{0} {1} {2} {3} {4} {5}\n'.format(date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
+        output_file.write(line)
 
 
 def _chunk_data(data, num):
