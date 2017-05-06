@@ -17,7 +17,8 @@ DAILY = 'Time Series (Daily)'
 
 
 class settings():
-    API_KEY = 'demo'
+    API_KEY  = 'demo'
+    PROC_NUM = 1
 
 
 def get_data(tickers):
@@ -68,7 +69,6 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-s', '--settings', dest='settings_path', metavar='PATH', default='', help='path to the settings file')
-    parser.add_argument('-p', '--proc_num', dest='proc_num', type=int, metavar='NUM', default=1, help='number of processes')
     parser.add_argument('input_file_path', metavar='PATH', help='name of the test to run')
 
     options = parser.parse_args()
@@ -82,7 +82,7 @@ def main():
             ticker = line.rstrip('\n').upper()
             tickers.append(ticker)
 
-    proc_num = options.proc_num
+    proc_num = settings.PROC_NUM
     tickers = _chunk_data(tickers, proc_num)
 
     with Pool(processes=proc_num) as pool:
