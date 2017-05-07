@@ -2,6 +2,7 @@
 import sys
 import argparse
 import yaml
+import time
 import simplejson as json
 from urllib.request import urlopen
 from multiprocessing import Pool
@@ -22,22 +23,45 @@ class settings():
     CHUNK_SIZE = 90
 
 
-def get_data(tickers):
-    for ticker in tickers:
+def get_data(symbols):
+    for symbol in symbols:
         url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&apikey={1}'
-        url = url_template.format(ticker, settings.API_KEY)
+        url = url_template.format(symbol, settings.API_KEY)
 
         raw_data = urlopen(url)
         data = json.load(raw_data)
 
         if DAILY not in data:
-            print('No data for {0}'.format(ticker), file=sys.stderr)
+            print('No data for {0}'.format(symbol), file=sys.stderr)
             continue
 
-        file_name = './tmp/{0}'.format(ticker)
+        file_name = './tmp/{0}'.format(symbol)
 
         with open(file_name, 'w') as output_file:
             _write_to_file(output_file, data[DAILY])
+
+
+def run(symbols, proc_num):
+    while symbols:
+        symbols_chunk = symbols[:settings.CHUNK_SIZE]
+        symbols_chunk = _chunk_data(symbols_chunk, proc_num)
+
+        start_time = time.time()
+
+        with Pool(processes=proc_num) as pool:
+            pool.map(get_data, symbols_chunk)
+
+        end_time = time.time()
+
+        symbols = symbols[settings.CHUNK_SIZE:]
+
+        duration = end_time - start_time
+
+        # to lighten up the load on API
+        # sleep_time = 60 - duration
+
+        # if symbols and sleep_time > 0:
+        #     time.sleep(sleep_time)
 
 
 def _write_to_file(output_file, data):
@@ -81,23 +105,16 @@ def main():
 
     _load_settings(options.settings_path)
 
-    tickers = []
+    symbols = []
 
     with open(options.input_file_path) as input_file:
         for line in input_file:
-            ticker = line.rstrip('\n').upper()
-            tickers.append(ticker)
+            symbol = line.rstrip('\n').upper()
+            symbols.append(symbol)
 
     proc_num = settings.PROC_NUM
 
-    while tickers:
-        tickers_chunk = tickers[:settings.CHUNK_SIZE]
-        tickers_chunk = _chunk_data(tickers_chunk, proc_num)
-
-        with Pool(processes=proc_num) as pool:
-            pool.map(get_data, tickers_chunk)
-
-        tickers = tickers[settings.CHUNK_SIZE:]
+    run(symbols, proc_num)
 
 
 if __name__ == '__main__':
