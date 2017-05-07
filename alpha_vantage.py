@@ -18,15 +18,16 @@ DAILY = 'Time Series (Daily)'
 
 
 class settings():
-    API_KEY    = 'demo'
-    PROC_NUM   = 1
-    CHUNK_SIZE = 90
+    API_KEY     = 'demo'
+    PROC_NUM    = 1
+    CHUNK_SIZE  = 90
+    OUTPUT_SIZE = 'full'
 
 
-def get_data(symbols):
+def _get_data(symbols):
     for symbol in symbols:
-        url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&apikey={1}'
-        url = url_template.format(symbol, settings.API_KEY)
+        url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
+        url = url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
 
         raw_data = urlopen(url)
         data = json.load(raw_data)
@@ -39,29 +40,6 @@ def get_data(symbols):
 
         with open(file_name, 'w') as output_file:
             _write_to_file(output_file, data[DAILY])
-
-
-def run(symbols, proc_num):
-    while symbols:
-        symbols_chunk = symbols[:settings.CHUNK_SIZE]
-        symbols_chunk = _chunk_data(symbols_chunk, proc_num)
-
-        start_time = time.time()
-
-        with Pool(processes=proc_num) as pool:
-            pool.map(get_data, symbols_chunk)
-
-        end_time = time.time()
-
-        symbols = symbols[settings.CHUNK_SIZE:]
-
-        duration = end_time - start_time
-
-        # to lighten up the load on API
-        # sleep_time = 60 - duration
-
-        # if symbols and sleep_time > 0:
-        #     time.sleep(sleep_time)
 
 
 def _write_to_file(output_file, data):
@@ -87,7 +65,32 @@ def _chunk_data(data, num):
     return out
 
 
-def _load_settings(path):
+def run(symbols, proc_num):
+    while symbols:
+        symbols_chunk = symbols[:settings.CHUNK_SIZE]
+        symbols_chunk = _chunk_data(symbols_chunk, proc_num)
+
+        start_time = time.time()
+
+        with Pool(processes=proc_num) as pool:
+            pool.map(_get_data, symbols_chunk)
+
+        end_time = time.time()
+
+        symbols = symbols[settings.CHUNK_SIZE:]
+
+        duration = end_time - start_time
+
+        print(duration)
+
+        # to lighten up the load on API
+        # sleep_time = 60 - duration
+
+        # if symbols and sleep_time > 0:
+        #     time.sleep(sleep_time)
+
+
+def load_settings(path):
     with open(path) as f:
         s = yaml.load(f)
 
@@ -103,7 +106,7 @@ def main():
 
     options = parser.parse_args()
 
-    _load_settings(options.settings_path)
+    load_settings(options.settings_path)
 
     symbols = []
 
@@ -112,9 +115,7 @@ def main():
             symbol = line.rstrip('\n').upper()
             symbols.append(symbol)
 
-    proc_num = settings.PROC_NUM
-
-    run(symbols, proc_num)
+    run(symbols, settings.PROC_NUM)
 
 
 if __name__ == '__main__':
