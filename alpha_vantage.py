@@ -17,8 +17,9 @@ DAILY = 'Time Series (Daily)'
 
 
 class settings():
-    API_KEY  = 'demo'
-    PROC_NUM = 1
+    API_KEY    = 'demo'
+    PROC_NUM   = 1
+    CHUNK_SIZE = 90
 
 
 def get_data(tickers):
@@ -88,10 +89,15 @@ def main():
             tickers.append(ticker)
 
     proc_num = settings.PROC_NUM
-    tickers = _chunk_data(tickers, proc_num)
 
-    with Pool(processes=proc_num) as pool:
-        pool.map(get_data, tickers)
+    while tickers:
+        tickers_chunk = tickers[:settings.CHUNK_SIZE]
+        tickers_chunk = _chunk_data(tickers_chunk, proc_num)
+
+        with Pool(processes=proc_num) as pool:
+            pool.map(get_data, tickers_chunk)
+
+        tickers = tickers[settings.CHUNK_SIZE:]
 
 
 if __name__ == '__main__':
