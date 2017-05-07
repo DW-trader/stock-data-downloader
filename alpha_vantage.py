@@ -40,8 +40,13 @@ def get_data(tickers):
 
 
 def _write_to_file(output_file, data):
+    buff = []
     for date, info in data.items():
         line = '{0} {1} {2} {3} {4} {5}\n'.format(date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
+        buff.append(line)
+
+    buff.sort()
+    for line in buff:
         output_file.write(line)
 
 
