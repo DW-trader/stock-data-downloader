@@ -5,6 +5,7 @@ import yaml
 import time
 import simplejson as json
 from urllib.request import urlopen
+from urllib.error import HTTPError
 from multiprocessing import Pool
 from multiprocessing import Lock
 
@@ -66,8 +67,13 @@ class StockDataDownloader(object):
         for symbol in symbols_chunk:
             url = self.url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
 
-            raw_data = urlopen(url)
-            data = json.load(raw_data)
+            try:
+                with urlopen(url) as response:
+                    data = json.load(response)
+
+            except HTTPError as e:
+                self._print_err('{0}: {1}'.format(symbol, e.code))
+                continue
 
             if DAILY not in data:
                 self._print_err('No data for {0}'.format(symbol))
