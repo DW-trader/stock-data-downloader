@@ -70,16 +70,19 @@ class StockDataDownloader(object):
             data = json.load(raw_data)
 
             if DAILY not in data:
-                lock.acquire()
-                print('No data for {0}'.format(symbol), file=sys.stderr)
-                #self.err_log.write('No data for {0}\n'.format(symbol))
-                lock.release()
+                self._print_err('No data for {0}'.format(symbol))
                 continue
 
             file_name = './tmp/{0}'.format(symbol)
 
             with open(file_name, 'w') as output_file:
                 self._write_to_file(output_file, data[DAILY])
+
+
+    def _print_err(self, msg):
+        lock.acquire()
+        print(msg, file=sys.stderr)
+        lock.release()
 
 
     def _write_to_file(self, output_file, data):
