@@ -6,6 +6,7 @@ import time
 import simplejson as json
 from urllib.request import urlopen
 from multiprocessing import Pool
+from multiprocessing import Lock
 
 
 OPEN   = '1. open'
@@ -18,11 +19,10 @@ DAILY = 'Time Series (Daily)'
 
 
 class settings():
-    API_KEY     = 'demo'
-    PROC_NUM    = 1
-    CHUNK_SIZE  = 90
-    OUTPUT_SIZE = 'full'
-    LOG_PATH    = ''
+    API_KEY      = 'demo'
+    PROC_NUM     = 1
+    CHUNK_SIZE   = 90
+    OUTPUT_SIZE  = 'compact'
 
 
 class StockDataDownloader(object):
@@ -33,12 +33,18 @@ class StockDataDownloader(object):
 
 
     def run(self, proc_num):
+        global_lock = Lock()
+
+        def init():
+            global lock
+            lock = global_lock
+
         while self.symbols:
             symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
 
             start_time = time.time()
 
-            with Pool(processes=proc_num) as pool:
+            with Pool(processes=proc_num, initializer=init) as pool:
                 pool.map(self._get_data, symbols_chunk)
 
             end_time = time.time()
@@ -64,7 +70,10 @@ class StockDataDownloader(object):
             data = json.load(raw_data)
 
             if DAILY not in data:
+                lock.acquire()
                 print('No data for {0}'.format(symbol), file=sys.stderr)
+                #self.err_log.write('No data for {0}\n'.format(symbol))
+                lock.release()
                 continue
 
             file_name = './tmp/{0}'.format(symbol)
