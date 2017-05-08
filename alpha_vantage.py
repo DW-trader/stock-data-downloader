@@ -22,72 +22,78 @@ class settings():
     PROC_NUM    = 1
     CHUNK_SIZE  = 90
     OUTPUT_SIZE = 'full'
+    LOG_PATH    = ''
 
 
-def _get_data(symbols):
-    for symbol in symbols:
-        url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
-        url = url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
+class StockDataDownloader(object):
 
-        raw_data = urlopen(url)
-        data = json.load(raw_data)
-
-        if DAILY not in data:
-            print('No data for {0}'.format(symbol), file=sys.stderr)
-            continue
-
-        file_name = './tmp/{0}'.format(symbol)
-
-        with open(file_name, 'w') as output_file:
-            _write_to_file(output_file, data[DAILY])
+    def __init__(self, symbols):
+        self.symbols = symbols
+        self.url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
 
 
-def _write_to_file(output_file, data):
-    buff = []
-    for date, info in data.items():
-        line = '{0} {1} {2} {3} {4} {5}\n'.format(date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
-        buff.append(line)
+    def run(self, proc_num):
+        while self.symbols:
+            symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
 
-    buff.sort()
-    for line in buff:
-        output_file.write(line)
+            start_time = time.time()
+
+            with Pool(processes=proc_num) as pool:
+                pool.map(self._get_data, symbols_chunk)
+
+            end_time = time.time()
+
+            self.symbols = self.symbols[settings.CHUNK_SIZE:]
+
+            duration = end_time - start_time
+
+            print(duration)
+
+            # to lighten up the load on API
+            # sleep_time = 60 - duration
+
+            # if symbols and sleep_time > 0:
+            #     time.sleep(sleep_time)
 
 
-def _chunk_data(data, num):
-    avg = len(data) / float(num)
-    out = []
-    last = 0.0
+    def _get_data(self, symbols_chunk):
+        for symbol in symbols_chunk:
+            url = self.url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
 
-    while last < len(data):
-        out.append(data[int(last):int(last + avg)])
-        last += avg
+            raw_data = urlopen(url)
+            data = json.load(raw_data)
 
-    return out
+            if DAILY not in data:
+                print('No data for {0}'.format(symbol), file=sys.stderr)
+                continue
+
+            file_name = './tmp/{0}'.format(symbol)
+
+            with open(file_name, 'w') as output_file:
+                self._write_to_file(output_file, data[DAILY])
 
 
-def run(symbols, proc_num):
-    while symbols:
-        symbols_chunk = symbols[:settings.CHUNK_SIZE]
-        symbols_chunk = _chunk_data(symbols_chunk, proc_num)
+    def _write_to_file(self, output_file, data):
+        buff = []
+        for date, info in data.items():
+            line = '{0} {1} {2} {3} {4} {5}\n'.format(date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
+            buff.append(line)
 
-        start_time = time.time()
+        buff.sort()
+        for line in buff:
+            output_file.write(line)
 
-        with Pool(processes=proc_num) as pool:
-            pool.map(_get_data, symbols_chunk)
 
-        end_time = time.time()
+    def _chunk_data(self, data, num):
+        avg = len(data) / float(num)
+        out = []
+        last = 0.0
 
-        symbols = symbols[settings.CHUNK_SIZE:]
+        while last < len(data):
+            out.append(data[int(last):int(last + avg)])
+            last += avg
 
-        duration = end_time - start_time
-
-        print(duration)
-
-        # to lighten up the load on API
-        # sleep_time = 60 - duration
-
-        # if symbols and sleep_time > 0:
-        #     time.sleep(sleep_time)
+        return out
 
 
 def load_settings(path):
@@ -115,7 +121,8 @@ def main():
             symbol = line.rstrip('\n').upper()
             symbols.append(symbol)
 
-    run(symbols, settings.PROC_NUM)
+    sdd = StockDataDownloader(symbols)
+    sdd.run(settings.PROC_NUM)
 
 
 if __name__ == '__main__':
