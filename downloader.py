@@ -18,6 +18,8 @@ VOLUME = '5. volume'
 
 DAILY = 'Time Series (Daily)'
 
+LOCK = Lock()
+
 
 class settings():
     API_KEY      = 'demo'
@@ -34,33 +36,27 @@ class StockDataDownloader(object):
 
 
     def run(self, proc_num):
-        global_lock = Lock()
+        with Pool(processes=proc_num) as pool:
+            while self.symbols:
+                symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
 
-        def init():
-            global lock
-            lock = global_lock
+                start_time = time.time()
 
-        while self.symbols:
-            symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
-
-            start_time = time.time()
-
-            with Pool(processes=proc_num, initializer=init) as pool:
                 pool.map(self._get_data, symbols_chunk)
 
-            end_time = time.time()
+                end_time = time.time()
 
-            self.symbols = self.symbols[settings.CHUNK_SIZE:]
+                self.symbols = self.symbols[settings.CHUNK_SIZE:]
 
-            duration = end_time - start_time
+                duration = end_time - start_time
 
-            print(duration)
+                print(duration)
 
-            # to lighten up the load on API
-            # sleep_time = 60 - duration
+                # to lighten up the load on API
+                # sleep_time = 60 - duration
 
-            # if symbols and sleep_time > 0:
-            #     time.sleep(sleep_time)
+                # if symbols and sleep_time > 0:
+                #     time.sleep(sleep_time)
 
 
     def _get_data(self, symbols_chunk):
@@ -86,9 +82,8 @@ class StockDataDownloader(object):
 
 
     def _print_err(self, msg):
-        lock.acquire()
-        print(msg, file=sys.stderr)
-        lock.release()
+        with LOCK:
+            print(msg, file=sys.stderr)
 
 
     def _write_to_file(self, output_file, data):
