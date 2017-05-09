@@ -40,27 +40,27 @@ class StockDataDownloader(object):
             global lock
             lock = global_lock
 
-        while self.symbols:
-            symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
+        with Pool(processes=proc_num, initializer=init) as pool:
+            while self.symbols:
+                symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
 
-            start_time = time.time()
+                start_time = time.time()
 
-            with Pool(processes=proc_num, initializer=init) as pool:
                 pool.map(self._get_data, symbols_chunk)
 
-            end_time = time.time()
+                end_time = time.time()
 
-            self.symbols = self.symbols[settings.CHUNK_SIZE:]
+                self.symbols = self.symbols[settings.CHUNK_SIZE:]
 
-            duration = end_time - start_time
+                duration = end_time - start_time
 
-            print(duration)
+                print(duration)
 
-            # to lighten up the load on API
-            # sleep_time = 60 - duration
+                # to lighten up the load on API
+                # sleep_time = 60 - duration
 
-            # if symbols and sleep_time > 0:
-            #     time.sleep(sleep_time)
+                # if symbols and sleep_time > 0:
+                #     time.sleep(sleep_time)
 
 
     def _get_data(self, symbols_chunk):
