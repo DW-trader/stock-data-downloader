@@ -18,6 +18,8 @@ VOLUME = '5. volume'
 
 DAILY = 'Time Series (Daily)'
 
+LOCK = Lock()
+
 
 class settings():
     API_KEY      = 'demo'
@@ -34,13 +36,7 @@ class StockDataDownloader(object):
 
 
     def run(self, proc_num):
-        global_lock = Lock()
-
-        def init():
-            global lock
-            lock = global_lock
-
-        with Pool(processes=proc_num, initializer=init) as pool:
+        with Pool(processes=proc_num) as pool:
             while self.symbols:
                 symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
 
@@ -86,9 +82,8 @@ class StockDataDownloader(object):
 
 
     def _print_err(self, msg):
-        lock.acquire()
-        print(msg, file=sys.stderr)
-        lock.release()
+        with LOCK:
+            print(msg, file=sys.stderr)
 
 
     def _write_to_file(self, output_file, data):
