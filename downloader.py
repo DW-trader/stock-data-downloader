@@ -80,7 +80,7 @@ class StockDataDownloader(object):
             output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
 
             with open(output_file_path, 'w') as output_file:
-                self._write_to_file(output_file, data[DAILY])
+                self._write(output_file, data[DAILY])
 
 
     def _print_err(self, msg):
@@ -88,15 +88,27 @@ class StockDataDownloader(object):
             print(msg, file=sys.stderr)
 
 
-    def _write_to_file(self, output_file, data):
+    def _write(self, output_file, data):
         buff = []
+
         for date, info in data.items():
-            line = '{0} {1} {2} {3} {4} {5}\n'.format(date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME])
-            buff.append(line)
+            date_split = date.split()
+
+            if len(date_split) == 2:
+                date = date_split[0]
+
+            buff.append((date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
 
         buff.sort()
-        for line in buff:
-            output_file.write(line)
+
+        for row in buff:
+            self._write_to_file(output_file, row)
+            #self._write_to_db(row)
+
+
+    def _write_to_file(self, output_file, row):
+        line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
+        output_file.write(line)
 
 
     def _chunk_data(self, data, num):
