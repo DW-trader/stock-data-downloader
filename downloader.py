@@ -1,4 +1,5 @@
 
+import os
 import sys
 import argparse
 import yaml
@@ -26,6 +27,7 @@ class settings():
     PROC_NUM     = 1
     CHUNK_SIZE   = 90
     OUTPUT_SIZE  = 'compact'
+    OUTPUT_DIR   = './tmp'
 
 
 class StockDataDownloader(object):
@@ -75,9 +77,9 @@ class StockDataDownloader(object):
                 self._print_err('No data for {0}'.format(symbol))
                 continue
 
-            file_name = './tmp/{0}'.format(symbol)
+            output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
 
-            with open(file_name, 'w') as output_file:
+            with open(output_file_path, 'w') as output_file:
                 self._write_to_file(output_file, data[DAILY])
 
 
