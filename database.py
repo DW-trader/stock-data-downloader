@@ -29,3 +29,8 @@ class Database(object):
         ]
 
         self._client.write_points(points)
+
+
+    def delete_row(self, symbol, date):
+        query_str = 'delete from stock where time = \'{0}\' and symbol = \'{1}\''.format(date, symbol)
+        self._client.query(query_str)

@@ -112,7 +112,7 @@ class StockDataDownloader(object):
 
                 except IOError as e:
                     self._print_err(symbol, 'error occured while trying to write to file')
-                    # self.db.delete_row(symbol, timestamp)
+                    self.db.delete_row(symbol, row[0])
                     break
 
                 except Exception as e:
