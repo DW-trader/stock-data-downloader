@@ -35,15 +35,15 @@ class settings():
 class StockDataDownloader(object):
 
     def __init__(self, symbols):
-        self.symbols = symbols
-        self.url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
-        self.db = Database('test')
+        self._symbols = symbols
+        self._url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
+        self._db = Database('test')
 
 
     def run(self, proc_num):
         with Pool(processes=proc_num) as pool:
-            while self.symbols:
-                symbols_chunk = self._chunk_data(self.symbols[:settings.CHUNK_SIZE], proc_num)
+            while self._symbols:
+                symbols_chunk = self._chunk_data(self._symbols[:settings.CHUNK_SIZE], proc_num)
 
                 start_time = time.time()
 
@@ -51,7 +51,7 @@ class StockDataDownloader(object):
 
                 end_time = time.time()
 
-                self.symbols = self.symbols[settings.CHUNK_SIZE:]
+                self._symbols = self._symbols[settings.CHUNK_SIZE:]
 
                 duration = end_time - start_time
 
@@ -66,7 +66,7 @@ class StockDataDownloader(object):
 
     def _get_data(self, symbols_chunk):
         for symbol in symbols_chunk:
-            url = self.url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
+            url = self._url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
 
             try:
                 with urlopen(url) as response:
@@ -112,7 +112,7 @@ class StockDataDownloader(object):
 
                 except IOError as e:
                     self._print_err(symbol, 'error occured while trying to write to file')
-                    self.db.delete_row(symbol, row[0])
+                    self._db.delete_row(symbol, row[0])
                     break
 
                 except Exception as e:
@@ -127,7 +127,7 @@ class StockDataDownloader(object):
 
     def _write_to_db(self, symbol, row):
         timestamp, open, high, low, close, volume = row
-        self.db.write_row(symbol, timestamp, float(open), float(high), float(low), float(close), float(volume))
+        self._db.write_row(symbol, timestamp, float(open), float(high), float(low), float(close), float(volume))
 
 
     def _chunk_data(self, data, num):
