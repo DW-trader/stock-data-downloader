@@ -127,6 +127,7 @@ class StockDataDownloader(object):
 
     def _write_to_db(self, symbol, row):
         timestamp, open, high, low, close, volume = row
+        timestamp = '{0} {1}'.format(timestamp, '16:00:00')
         self._db.write_row(symbol, timestamp, float(open), float(high), float(low), float(close), float(volume))
 
 
