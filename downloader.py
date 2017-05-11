@@ -10,6 +10,8 @@ from urllib.error import HTTPError
 from multiprocessing import Pool
 from multiprocessing import Lock
 
+from database import Database
+
 
 OPEN   = '1. open'
 HIGH   = '2. high'
@@ -35,6 +37,7 @@ class StockDataDownloader(object):
     def __init__(self, symbols):
         self.symbols = symbols
         self.url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
+        self.db = Database('test')
 
 
     def run(self, proc_num):
@@ -70,25 +73,23 @@ class StockDataDownloader(object):
                     data = json.load(response)
 
             except HTTPError as e:
-                self._print_err('{0}: {1}'.format(symbol, e.code))
+                self._print_err(symbol, 'HTTP error {0}'.format(e.code))
                 continue
 
             if DAILY not in data:
-                self._print_err('No data for {0}'.format(symbol))
+                self._print_err(symbol, 'no data')
                 continue
 
-            output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
-
-            with open(output_file_path, 'w') as output_file:
-                self._write(output_file, data[DAILY])
+            self._write(symbol, data[DAILY])
 
 
-    def _print_err(self, msg):
+    def _print_err(self, symbol, msg):
+        error_msg = '{0} - {1}'.format(symbol, msg)
         with LOCK:
-            print(msg, file=sys.stderr)
+            print(error_msg, file=sys.stderr)
 
 
-    def _write(self, output_file, data):
+    def _write(self, symbol, data):
         buff = []
 
         for date, info in data.items():
@@ -101,14 +102,32 @@ class StockDataDownloader(object):
 
         buff.sort()
 
-        for row in buff:
-            self._write_to_file(output_file, row)
-            #self._write_to_db(row)
+        output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
+
+        with open(output_file_path, 'w') as output_file:
+            for row in buff:
+                try:
+                    self._write_to_db(symbol, row)
+                    self._write_to_file(output_file, row)
+
+                except IOError as e:
+                    self._print_err(symbol, 'error occured while trying to write to file')
+                    # self.db.delete_row(symbol, timestamp)
+                    break
+
+                except Exception as e:
+                    self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
+                    break
 
 
     def _write_to_file(self, output_file, row):
         line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
         output_file.write(line)
+
+
+    def _write_to_db(self, symbol, row):
+        timestamp, open, high, low, close, volume = row
+        self.db.write_row(symbol, timestamp, float(open), float(high), float(low), float(close), float(volume))
 
 
     def _chunk_data(self, data, num):
