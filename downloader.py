@@ -102,21 +102,21 @@ class StockDataDownloader(object):
 
         buff.sort()
 
+        try:
+            self._write_to_db(symbol, buff)
+
+        except Exception as e:
+            self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
+
         output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
 
         with open(output_file_path, 'w') as output_file:
             for row in buff:
                 try:
-                    self._write_to_db(symbol, row)
                     self._write_to_file(output_file, row)
 
                 except IOError as e:
                     self._print_err(symbol, 'error occured while trying to write to file')
-                    self._db.delete_row(symbol, row[0])
-                    break
-
-                except Exception as e:
-                    self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
                     break
 
 
@@ -125,10 +125,8 @@ class StockDataDownloader(object):
         output_file.write(line)
 
 
-    def _write_to_db(self, symbol, row):
-        timestamp, open, high, low, close, volume = row
-        timestamp = '{0} {1}'.format(timestamp, '16:00:00')
-        self._db.write_row(symbol, timestamp, float(open), float(high), float(low), float(close), float(volume))
+    def _write_to_db(self, symbol, buff):
+        self._db.write_rows(symbol, buff)
 
 
     def _chunk_data(self, data, num):
