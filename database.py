@@ -23,9 +23,9 @@ class Database(object):
         self._client.query(query_str)
 
 
-    def _make_point(self, symbol, timestamp, open, high, low, close, volume):
+    def _make_point(self, measurement, symbol, timestamp, open, high, low, close, volume):
         return {
-                'measurement' : 'stock',
+                'measurement' : measurement,
                 'tags' :
                 {
                     'symbol' : symbol

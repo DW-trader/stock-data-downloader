@@ -46,7 +46,7 @@ class StockDataDownloader(object):
     def __init__(self, symbols, mode):
         self._symbols      = symbols
         self._url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
-        self._db           = Database('test')
+        self._db           = Database('stock_data')
         self._mode         = mode
 
 
@@ -65,13 +65,14 @@ class StockDataDownloader(object):
 
                 duration = end_time - start_time
 
-                print(duration)
-
                 # to lighten up the load on API
-                # sleep_time = 60 - duration
+                sleep_time = 60 - duration
 
-                # if symbols and sleep_time > 0:
-                #     time.sleep(sleep_time)
+                if symbols and sleep_time > 0:
+                    print('sleeping {0} seconds'.format(sleep_time))
+                    time.sleep(sleep_time)
+
+                print('{0} symbols left'.format(len(self._symbols)))
 
 
     def _get_data(self, symbols_chunk):
@@ -110,7 +111,7 @@ class StockDataDownloader(object):
         buff.sort()
 
         try:
-            self._write_to_db(symbol, buff)
+            self._write_to_db('daily_stock_data', symbol, buff)
         except Exception as e:
             self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
 
