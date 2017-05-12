@@ -111,7 +111,7 @@ class StockDataDownloader(object):
         buff.sort()
 
         try:
-            self._write_to_db('daily_stock_data', symbol, buff)
+            self._write_to_db(symbol, buff)
         except Exception as e:
             self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
 
@@ -135,7 +135,7 @@ class StockDataDownloader(object):
 
 
     def _write_to_db(self, symbol, buff):
-        self._db.write_rows(symbol, buff)
+        self._db.write_rows('daily_stock_data', symbol, buff)
 
 
     def _chunk_data(self, data, num):

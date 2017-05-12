@@ -8,11 +8,11 @@ class Database(object):
         self._client = InfluxDBClient('localhost', 8086, 'root', 'root', db_name)
 
 
-    def write_rows(self, symbol, rows):
+    def write_rows(self, measurement, symbol, rows):
         points = []
 
         for row in rows:
-            point = self._make_point(symbol, *row)
+            point = self._make_point(measurement, symbol, *row)
             points.append(point)
 
         self._client.write_points(points)
