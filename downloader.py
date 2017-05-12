@@ -114,6 +114,9 @@ class StockDataDownloader(object):
         except Exception as e:
             self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
 
+        if self._mode == UPDATE:
+            return
+
         try:
             self._write_to_file(symbol, buff)
         except:
