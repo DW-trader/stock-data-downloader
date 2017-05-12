@@ -124,7 +124,8 @@ class StockDataDownloader(object):
 
 
     def _write_to_file(self, symbol, buff):
-        output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
+        output_dir = os.path.join(settings.OUTPUT_DIR, symbol[0])
+        output_file_path = os.path.join(output_dir, symbol)
 
         with open(output_file_path, 'w') as output_file:
             for row in buff:
