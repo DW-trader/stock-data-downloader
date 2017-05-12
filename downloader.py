@@ -111,25 +111,22 @@ class StockDataDownloader(object):
 
         try:
             self._write_to_db(symbol, buff)
-
         except Exception as e:
             self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
 
+        try:
+            self._write_to_file(symbol, buff)
+        except:
+            self._print_err(symbol, 'error occured while trying to write to file')
+
+
+    def _write_to_file(self, symbol, buff):
         output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
 
         with open(output_file_path, 'w') as output_file:
             for row in buff:
-                try:
-                    self._write_to_file(output_file, row)
-
-                except IOError as e:
-                    self._print_err(symbol, 'error occured while trying to write to file')
-                    break
-
-
-    def _write_to_file(self, output_file, row):
-        line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
-        output_file.write(line)
+                line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
+                output_file.write(line)
 
 
     def _write_to_db(self, symbol, buff):
