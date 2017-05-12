@@ -4,6 +4,8 @@ import sys
 import argparse
 import yaml
 import time
+import datetime
+import pytz
 import simplejson as json
 from urllib.request import urlopen
 from urllib.error import HTTPError
@@ -101,12 +103,9 @@ class StockDataDownloader(object):
         buff = []
 
         for date, info in data.items():
-            date_split = date.split()
+            timestamp = self._date_to_ny_utc(date)
 
-            if len(date_split) == 2:
-                date = date_split[0]
-
-            buff.append((date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
+            buff.append((timestamp, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
 
         buff.sort()
 
@@ -147,6 +146,20 @@ class StockDataDownloader(object):
             last += avg
 
         return out
+
+
+    def _date_to_ny_utc(self, date):
+        date_split = date.split()
+
+        if len(date_split) == 2:
+            date = date_split[0]
+
+        date = '{0} 16:00:00'.format(date)
+        ny_local = pytz.timezone('America/New_York')
+        naive = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+        ny_local_dt = ny_local.localize(naive, is_dst=None)
+
+        return ny_local_dt.astimezone(pytz.utc)
 
 
 def load_settings(path):
