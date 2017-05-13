@@ -4,6 +4,8 @@ import sys
 import argparse
 import yaml
 import time
+import datetime
+import pytz
 import simplejson as json
 from urllib.request import urlopen
 from urllib.error import HTTPError
@@ -19,6 +21,14 @@ LOW    = '3. low'
 CLOSE  = '4. close'
 VOLUME = '5. volume'
 
+IMPORT = 'import'
+UPDATE = 'update'
+
+OUTPUT_SIZE = {
+    IMPORT : 'full',
+    UPDATE : 'compact'
+}
+
 DAILY = 'Time Series (Daily)'
 
 LOCK = Lock()
@@ -28,16 +38,16 @@ class settings():
     API_KEY      = 'demo'
     PROC_NUM     = 1
     CHUNK_SIZE   = 90
-    OUTPUT_SIZE  = 'compact'
     OUTPUT_DIR   = './tmp'
 
 
 class StockDataDownloader(object):
 
-    def __init__(self, symbols):
-        self._symbols = symbols
+    def __init__(self, symbols, mode):
+        self._symbols      = symbols
         self._url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
-        self._db = Database('test')
+        self._db           = Database('stock_data')
+        self._mode         = mode
 
 
     def run(self, proc_num):
@@ -55,18 +65,19 @@ class StockDataDownloader(object):
 
                 duration = end_time - start_time
 
-                print(duration)
-
                 # to lighten up the load on API
-                # sleep_time = 60 - duration
+                sleep_time = 60 - duration
 
-                # if symbols and sleep_time > 0:
-                #     time.sleep(sleep_time)
+                if symbols and sleep_time > 0:
+                    print('sleeping {0} seconds'.format(sleep_time))
+                    time.sleep(sleep_time)
+
+                print('{0} symbols left'.format(len(self._symbols)))
 
 
     def _get_data(self, symbols_chunk):
         for symbol in symbols_chunk:
-            url = self._url_template.format(symbol, settings.OUTPUT_SIZE, settings.API_KEY)
+            url = self._url_template.format(symbol, OUTPUT_SIZE[self._mode], settings.API_KEY)
 
             try:
                 with urlopen(url) as response:
@@ -93,42 +104,38 @@ class StockDataDownloader(object):
         buff = []
 
         for date, info in data.items():
-            date_split = date.split()
+            timestamp = self._date_to_ny_utc(date)
 
-            if len(date_split) == 2:
-                date = date_split[0]
-
-            buff.append((date, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
+            buff.append((timestamp, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
 
         buff.sort()
 
-        output_file_path = os.path.join(settings.OUTPUT_DIR, symbol)
+        try:
+            self._write_to_db(symbol, buff)
+        except Exception as e:
+            self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
+
+        if self._mode == UPDATE:
+            return
+
+        try:
+            self._write_to_file(symbol, buff)
+        except:
+            self._print_err(symbol, 'error occured while trying to write to file')
+
+
+    def _write_to_file(self, symbol, buff):
+        output_dir = os.path.join(settings.OUTPUT_DIR, symbol[0])
+        output_file_path = os.path.join(output_dir, symbol)
 
         with open(output_file_path, 'w') as output_file:
             for row in buff:
-                try:
-                    self._write_to_db(symbol, row)
-                    self._write_to_file(output_file, row)
-
-                except IOError as e:
-                    self._print_err(symbol, 'error occured while trying to write to file')
-                    self._db.delete_row(symbol, row[0])
-                    break
-
-                except Exception as e:
-                    self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
-                    break
+                line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
+                output_file.write(line)
 
 
-    def _write_to_file(self, output_file, row):
-        line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
-        output_file.write(line)
-
-
-    def _write_to_db(self, symbol, row):
-        timestamp, open, high, low, close, volume = row
-        timestamp = '{0} {1}'.format(timestamp, '16:00:00')
-        self._db.write_row(symbol, timestamp, float(open), float(high), float(low), float(close), float(volume))
+    def _write_to_db(self, symbol, buff):
+        self._db.write_rows('daily_stock_data', symbol, buff)
 
 
     def _chunk_data(self, data, num):
@@ -143,6 +150,20 @@ class StockDataDownloader(object):
         return out
 
 
+    def _date_to_ny_utc(self, date):
+        date_split = date.split()
+
+        if len(date_split) == 2:
+            date = date_split[0]
+
+        date = '{0} 16:00:00'.format(date)
+        ny_local = pytz.timezone('America/New_York')
+        naive = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
+        ny_local_dt = ny_local.localize(naive, is_dst=None)
+
+        return ny_local_dt.astimezone(pytz.utc)
+
+
 def load_settings(path):
     with open(path) as f:
         s = yaml.load(f)
@@ -155,7 +176,8 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-s', '--settings', dest='settings_path', metavar='PATH', default='', help='path to the settings file')
-    parser.add_argument('input_file_path', metavar='PATH', help='name of the test to run')
+    parser.add_argument('input_file_path', metavar='PATH', help='input file path with stock symbols')
+    parser.add_argument('mode', metavar='MODE', choices=[IMPORT, UPDATE], help='\'{0}\' or \'{1}\''.format(IMPORT, UPDATE))
 
     options = parser.parse_args()
 
@@ -168,7 +190,7 @@ def main():
             symbol = line.rstrip('\n').upper()
             symbols.append(symbol)
 
-    sdd = StockDataDownloader(symbols)
+    sdd = StockDataDownloader(symbols, options.mode)
     sdd.run(settings.PROC_NUM)
 
 
