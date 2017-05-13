@@ -68,7 +68,7 @@ class StockDataDownloader(object):
                 # to lighten up the load on API
                 sleep_time = 60 - duration
 
-                if symbols and sleep_time > 0:
+                if self._symbols and sleep_time > 0:
                     print('sleeping {0} seconds'.format(sleep_time))
                     time.sleep(sleep_time)
 
