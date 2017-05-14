@@ -56,7 +56,7 @@ class StockDataDownloader(object):
             global DB
             DB = Database(db_name)
 
-        with Pool(processes=proc_num, initializer=_init_db, initargs=('test',)) as pool:
+        with Pool(processes=proc_num, initializer=_init_db, initargs=('stock_data',)) as pool:
             while self._symbols:
                 symbols_chunk = self._chunk_data(self._symbols[:settings.CHUNK_SIZE], proc_num)
 

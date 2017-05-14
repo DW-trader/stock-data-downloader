@@ -12,7 +12,7 @@ def import_stock_data(symbol, input_file):
         line = line.rstrip('\n')
         rows.append(line.rsplit(' ', 5))
 
-    db = Database('test')
+    db = Database('stock_data')
     db.write_rows('daily_stock_data', symbol, rows)
 
 
@@ -24,7 +24,8 @@ def main():
     options = parser.parse_args()
 
     with open(options.input_file_path) as input_file:
-        symbol = options.input_file_path.split('/')[1]
+        symbol = options.input_file_path.split('/')[-1]
+        print(symbol)
         import_stock_data(symbol, input_file)
 
 
