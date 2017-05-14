@@ -1,10 +1,12 @@
 
+from os import listdir
+from os.path import isfile, join
 import argparse
 
 from database import Database
 
 
-def import_stock_data(symbol, input_file):
+def import_stock_data(db, symbol, input_file):
 
     rows = []
 
@@ -12,21 +14,23 @@ def import_stock_data(symbol, input_file):
         line = line.rstrip('\n')
         rows.append(line.rsplit(' ', 5))
 
-    db = Database('stock_data')
     db.write_rows('daily_stock_data', symbol, rows)
 
 
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('input_file_path', metavar='PATH', help='input file path with stock data')
+    parser.add_argument('input_directory_path', metavar='PATH', help='directory path with stock data')
 
     options = parser.parse_args()
 
-    with open(options.input_file_path) as input_file:
-        symbol = options.input_file_path.split('/')[-1]
-        print(symbol)
-        import_stock_data(symbol, input_file)
+    symbols = [f for f in listdir(options.input_directory_path) if isfile(join(options.input_directory_path, f))]
+
+    db = Database('test')
+
+    for symbol in symbols:
+        with open(join(options.input_directory_path, symbol)) as input_file:
+            import_stock_data(db, symbol, input_file)
 
 
 if __name__ == '__main__':
