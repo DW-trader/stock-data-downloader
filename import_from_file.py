@@ -11,8 +11,6 @@ def import_stock_data(symbol, input_file):
     for line in input_file:
         line = line.rstrip('\n')
         rows.append(line.rsplit(' ', 5))
-        # date, open, high, low, close, volume = line.rsplit(' ', 5)
-        #print(date)
 
     db = Database('test')
     db.write_rows('daily_stock_data', symbol, rows)
