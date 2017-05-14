@@ -33,6 +33,8 @@ DAILY = 'Time Series (Daily)'
 
 LOCK = Lock()
 
+DB = None
+
 
 class settings():
     API_KEY      = 'demo'
@@ -46,12 +48,15 @@ class StockDataDownloader(object):
     def __init__(self, symbols, mode):
         self._symbols      = symbols
         self._url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
-        self._db           = Database('stock_data')
         self._mode         = mode
 
 
     def run(self, proc_num):
-        with Pool(processes=proc_num) as pool:
+        def _init_db(db_name):
+            global DB
+            DB = Database(db_name)
+
+        with Pool(processes=proc_num, initializer=_init_db, initargs=('stock_data',)) as pool:
             while self._symbols:
                 symbols_chunk = self._chunk_data(self._symbols[:settings.CHUNK_SIZE], proc_num)
 
@@ -68,7 +73,7 @@ class StockDataDownloader(object):
                 # to lighten up the load on API
                 sleep_time = 60 - duration
 
-                if symbols and sleep_time > 0:
+                if self._symbols and sleep_time > 0:
                     print('sleeping {0} seconds'.format(sleep_time))
                     time.sleep(sleep_time)
 
@@ -135,7 +140,7 @@ class StockDataDownloader(object):
 
 
     def _write_to_db(self, symbol, buff):
-        self._db.write_rows('daily_stock_data', symbol, buff)
+        DB.write_rows('daily_stock_data', symbol, buff)
 
 
     def _chunk_data(self, data, num):
