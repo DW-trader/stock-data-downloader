@@ -24,10 +24,20 @@ class Database(object):
 
 
     def get_last_timestamp(self, symbol):
-        query_str = 'select * from daily_stock_data where symbol = \'{0}\' group by * order by desc limit 1'.format(symbol)
+        query_str = 'select * from daily_stock_data where symbol = \'{0}\' group by * order by desc limit 1'.format(symbol.upper())
         result = self._client.query(query_str)
 
-        return next(result.get_points())['time']
+        point = next(result.get_points(), None)
+
+        if point:
+            return point['time']
+
+
+    def get_last_date(self, symbol):
+        timestamp = self.get_last_timestamp(symbol)
+
+        if timestamp:
+            return timestamp.split('T')[0]
 
 
     def _make_point(self, measurement, symbol, timestamp, open, high, low, close, volume):
