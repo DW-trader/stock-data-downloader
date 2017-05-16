@@ -29,6 +29,11 @@ OUTPUT_SIZE = {
     UPDATE : 'compact'
 }
 
+WRITE_MODE = {
+    IMPORT : 'w',
+    UPDATE : 'a'
+}
+
 DAILY = 'Time Series (Daily)'
 
 LOCK = Lock()
@@ -45,10 +50,11 @@ class settings():
 
 class StockDataDownloader(object):
 
-    def __init__(self, symbols, mode):
-        self._symbols      = symbols
-        self._url_template = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
-        self._mode         = mode
+    def __init__(self, symbols, mode, last_date):
+        self._symbols        = symbols
+        self._url_template   = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
+        self._mode           = mode
+        self._last_timestamp = self._date_to_ny_utc(last_date)
 
 
     def run(self, proc_num):
@@ -96,7 +102,22 @@ class StockDataDownloader(object):
                 self._print_err(symbol, 'no data')
                 continue
 
-            self._write(symbol, data[DAILY])
+            write_data = self._get_write_data(symbol, data[DAILY])
+            self._write(symbol, write_data)
+
+
+    def _get_write_data(self, symbol, data):
+        buff = []
+
+        for date, info in data.items():
+            timestamp = self._date_to_ny_utc(date)
+
+            if self._mode == IMPORT or timestamp > self._last_timestamp:
+                buff.append((timestamp, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
+
+        buff.sort()
+
+        return buff
 
 
     def _print_err(self, symbol, msg):
@@ -106,25 +127,13 @@ class StockDataDownloader(object):
 
 
     def _write(self, symbol, data):
-        buff = []
-
-        for date, info in data.items():
-            timestamp = self._date_to_ny_utc(date)
-
-            buff.append((timestamp, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
-
-        buff.sort()
-
         try:
-            self._write_to_db(symbol, buff)
+            self._write_to_db(symbol, data)
         except Exception as e:
             self._print_err(symbol, 'error occured while trying to write to db: {0}'.format(e))
 
-        if self._mode == UPDATE:
-            return
-
         try:
-            self._write_to_file(symbol, buff)
+            self._write_to_file(symbol, data)
         except:
             self._print_err(symbol, 'error occured while trying to write to file')
 
@@ -133,7 +142,7 @@ class StockDataDownloader(object):
         output_dir = os.path.join(settings.OUTPUT_DIR, symbol[0])
         output_file_path = os.path.join(output_dir, symbol)
 
-        with open(output_file_path, 'w') as output_file:
+        with open(output_file_path, WRITE_MODE[self._mode]) as output_file:
             for row in buff:
                 line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
                 output_file.write(line)
@@ -181,6 +190,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-s', '--settings', dest='settings_path', metavar='PATH', default='', help='path to the settings file')
+    parser.add_argument('-d', '--last_date', dest='last_date', metavar='DATE', default='1970-01-01', help='last date in the database (Y-M-D)')
     parser.add_argument('input_file_path', metavar='PATH', help='input file path with stock symbols')
     parser.add_argument('mode', metavar='MODE', choices=[IMPORT, UPDATE], help='\'{0}\' or \'{1}\''.format(IMPORT, UPDATE))
 
@@ -195,7 +205,7 @@ def main():
             symbol = line.rstrip('\n').upper()
             symbols.append(symbol)
 
-    sdd = StockDataDownloader(symbols, options.mode)
+    sdd = StockDataDownloader(symbols, options.mode, options.last_date)
     sdd.run(settings.PROC_NUM)
 
 

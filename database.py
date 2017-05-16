@@ -23,6 +23,13 @@ class Database(object):
         self._client.query(query_str)
 
 
+    def get_last_timestamp(self, symbol):
+        query_str = 'select * from daily_stock_data where symbol = \'{0}\' group by * order by desc limit 1'.format(symbol)
+        result = self._client.query(query_str)
+
+        return next(result.get_points())['time']
+
+
     def _make_point(self, measurement, symbol, timestamp, open, high, low, close, volume):
         return {
                 'measurement' : measurement,
