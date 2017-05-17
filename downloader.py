@@ -5,6 +5,7 @@ import argparse
 import yaml
 import time
 import datetime
+import calendar
 import pytz
 import simplejson as json
 from urllib.request import urlopen
@@ -29,11 +30,6 @@ OUTPUT_SIZE = {
     UPDATE : 'compact'
 }
 
-WRITE_MODE = {
-    IMPORT : 'w',
-    UPDATE : 'a'
-}
-
 DAILY = 'Time Series (Daily)'
 
 LOCK = Lock()
@@ -50,11 +46,10 @@ class settings():
 
 class StockDataDownloader(object):
 
-    def __init__(self, symbols, mode, last_date):
+    def __init__(self, symbols, mode):
         self._symbols        = symbols
         self._url_template   = 'http://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={0}&outputsize={1}&apikey={2}'
         self._mode           = mode
-        self._last_timestamp = self._date_to_ny_utc(last_date)
 
 
     def run(self, proc_num):
@@ -109,10 +104,13 @@ class StockDataDownloader(object):
     def _get_write_data(self, symbol, data):
         buff = []
 
+        if self._mode == UPDATE:
+            last_timestamp = DB.get_last_timestamp(symbol)
+
         for date, info in data.items():
             timestamp = self._date_to_ny_utc(date)
 
-            if self._mode == IMPORT or timestamp > self._last_timestamp:
+            if self._mode == IMPORT or timestamp > last_timestamp:
                 buff.append((timestamp, info[OPEN], info[HIGH], info[LOW], info[CLOSE], info[VOLUME]))
 
         buff.sort()
@@ -142,7 +140,13 @@ class StockDataDownloader(object):
         output_dir = os.path.join(settings.OUTPUT_DIR, symbol[0])
         output_file_path = os.path.join(output_dir, symbol)
 
-        with open(output_file_path, WRITE_MODE[self._mode]) as output_file:
+        if self._mode == IMPORT or not os.path.exists(output_file_path):
+            write_mode = 'w'
+        else:
+            write_mode = 'a'
+            print('apending to {0}'.format(output_file_path))
+
+        with open(output_file_path, write_mode) as output_file:
             for row in buff:
                 line = '{0} {1} {2} {3} {4} {5}\n'.format(*row)
                 output_file.write(line)
@@ -175,7 +179,7 @@ class StockDataDownloader(object):
         naive = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
         ny_local_dt = ny_local.localize(naive, is_dst=None)
 
-        return ny_local_dt.astimezone(pytz.utc)
+        return calendar.timegm(ny_local_dt.astimezone(pytz.utc).timetuple())
 
 
 def load_settings(path):
@@ -190,7 +194,6 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-s', '--settings', dest='settings_path', metavar='PATH', default='', help='path to the settings file')
-    parser.add_argument('-d', '--last_date', dest='last_date', metavar='DATE', default='1970-01-01', help='last date in the database (Y-M-D)')
     parser.add_argument('input_file_path', metavar='PATH', help='input file path with stock symbols')
     parser.add_argument('mode', metavar='MODE', choices=[IMPORT, UPDATE], help='\'{0}\' or \'{1}\''.format(IMPORT, UPDATE))
 
@@ -205,7 +208,7 @@ def main():
             symbol = line.rstrip('\n').upper()
             symbols.append(symbol)
 
-    sdd = StockDataDownloader(symbols, options.mode, options.last_date)
+    sdd = StockDataDownloader(symbols, options.mode)
     sdd.run(settings.PROC_NUM)
 
 

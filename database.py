@@ -15,7 +15,7 @@ class Database(object):
             point = self._make_point(measurement, symbol, *row)
             points.append(point)
 
-        self._client.write_points(points)
+        self._client.write_points(points, time_precision='s')
 
 
     def delete_row(self, symbol, date):
@@ -24,20 +24,13 @@ class Database(object):
 
 
     def get_last_timestamp(self, symbol):
-        query_str = 'select * from daily_stock_data where symbol = \'{0}\' group by * order by desc limit 1'.format(symbol.upper())
-        result = self._client.query(query_str)
+        query_str = 'select last(close) from daily_stock_data where symbol = \'{0}\''.format(symbol.upper())
+        result = self._client.query(query_str, epoch='s')
 
         point = next(result.get_points(), None)
 
         if point:
             return point['time']
-
-
-    def get_last_date(self, symbol):
-        timestamp = self.get_last_timestamp(symbol)
-
-        if timestamp:
-            return timestamp.split('T')[0]
 
 
     def _make_point(self, measurement, symbol, timestamp, open, high, low, close, volume):
