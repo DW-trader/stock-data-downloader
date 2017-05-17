@@ -144,7 +144,6 @@ class StockDataDownloader(object):
             write_mode = 'w'
         else:
             write_mode = 'a'
-            print('apending to {0}'.format(output_file_path))
 
         with open(output_file_path, write_mode) as output_file:
             for row in buff:
