@@ -27,7 +27,6 @@ def get_symbols():
 
         if symbol.isupper():
             symbols.append(symbol)
-            break
 
     return symbols
 
