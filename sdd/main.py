@@ -3,9 +3,9 @@ import argparse
 import yaml
 from urllib.request import urlopen
 
-from sdd.settings import Settings
-from sdd.downloader import Downloader
-from sdd.downloader import IMPORT, UPDATE
+from settings import Settings
+from downloader import Downloader
+from downloader import IMPORT, UPDATE
 
 
 def load_settings(path):

@@ -11,8 +11,8 @@ from urllib.error import HTTPError
 from multiprocessing import Pool
 from multiprocessing import Lock
 
-from sdd.settings import Settings
-from sdd.database import Database
+from settings import Settings
+from database import Database
 
 
 OPEN   = '1. open'
