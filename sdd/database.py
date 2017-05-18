@@ -32,6 +32,8 @@ class Database(object):
         if point:
             return point['time']
 
+        return 0
+
 
     def _make_point(self, measurement, symbol, timestamp, open, high, low, close, volume):
         return {
