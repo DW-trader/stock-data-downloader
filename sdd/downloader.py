@@ -1,8 +1,6 @@
 
 import os
 import sys
-import argparse
-import yaml
 import time
 import datetime
 import calendar
@@ -13,6 +11,7 @@ from urllib.error import HTTPError
 from multiprocessing import Pool
 from multiprocessing import Lock
 
+from settings import Settings
 from database import Database
 
 
@@ -37,14 +36,7 @@ LOCK = Lock()
 DB = None
 
 
-class settings():
-    API_KEY      = 'demo'
-    PROC_NUM     = 1
-    CHUNK_SIZE   = 90
-    OUTPUT_DIR   = './tmp'
-
-
-class StockDataDownloader(object):
+class Downloader(object):
 
     def __init__(self, symbols, mode):
         self._symbols        = symbols
@@ -52,14 +44,16 @@ class StockDataDownloader(object):
         self._mode           = mode
 
 
-    def run(self, proc_num):
+    def run(self):
         def _init_db(db_name):
             global DB
             DB = Database(db_name)
 
+        proc_num = Settings.PROC_NUM
+
         with Pool(processes=proc_num, initializer=_init_db, initargs=('stock_data',)) as pool:
             while self._symbols:
-                symbols_chunk = self._chunk_data(self._symbols[:settings.CHUNK_SIZE], proc_num)
+                symbols_chunk = self._chunk_data(self._symbols[:Settings.CHUNK_SIZE], proc_num)
 
                 start_time = time.time()
 
@@ -67,7 +61,7 @@ class StockDataDownloader(object):
 
                 end_time = time.time()
 
-                self._symbols = self._symbols[settings.CHUNK_SIZE:]
+                self._symbols = self._symbols[Settings.CHUNK_SIZE:]
 
                 duration = end_time - start_time
 
@@ -83,7 +77,7 @@ class StockDataDownloader(object):
 
     def _get_data(self, symbols_chunk):
         for symbol in symbols_chunk:
-            url = self._url_template.format(symbol, OUTPUT_SIZE[self._mode], settings.API_KEY)
+            url = self._url_template.format(symbol, OUTPUT_SIZE[self._mode], Settings.API_KEY)
 
             try:
                 with urlopen(url) as response:
@@ -137,7 +131,7 @@ class StockDataDownloader(object):
 
 
     def _write_to_file(self, symbol, buff):
-        output_dir = os.path.join(settings.OUTPUT_DIR, symbol[0])
+        output_dir = os.path.join(Settings.OUTPUT_DIR, symbol[0])
         output_file_path = os.path.join(output_dir, symbol)
 
         if self._mode == IMPORT or not os.path.exists(output_file_path):
@@ -179,37 +173,3 @@ class StockDataDownloader(object):
         ny_local_dt = ny_local.localize(naive, is_dst=None)
 
         return calendar.timegm(ny_local_dt.astimezone(pytz.utc).timetuple())
-
-
-def load_settings(path):
-    with open(path) as f:
-        s = yaml.load(f)
-
-    for key, value in s.items():
-        setattr(settings, key.upper(), value)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('-s', '--settings', dest='settings_path', metavar='PATH', default='', help='path to the settings file')
-    parser.add_argument('input_file_path', metavar='PATH', help='input file path with stock symbols')
-    parser.add_argument('mode', metavar='MODE', choices=[IMPORT, UPDATE], help='\'{0}\' or \'{1}\''.format(IMPORT, UPDATE))
-
-    options = parser.parse_args()
-
-    load_settings(options.settings_path)
-
-    symbols = []
-
-    with open(options.input_file_path) as input_file:
-        for line in input_file:
-            symbol = line.rstrip('\n').upper()
-            symbols.append(symbol)
-
-    sdd = StockDataDownloader(symbols, options.mode)
-    sdd.run(settings.PROC_NUM)
-
-
-if __name__ == '__main__':
-    main()
