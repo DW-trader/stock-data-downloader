@@ -1,2 +1,4 @@
-api_key  : "demo"
-proc_num : 4
+api_key    : "demo"
+proc_num   : 4
+chunk_size : 90
+output_dir : './tmp'
